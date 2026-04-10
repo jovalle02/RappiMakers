@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+duckdb
+anthropic
+python-dotenv
+ddgs

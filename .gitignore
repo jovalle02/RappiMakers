@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# DuckDB
+data/*.duckdb
+data/*.duckdb.wal
+
+# IDE
+.vscode/
+.idea/
+
+# Coding Agents
+.claude/
+CLAUDE.md
