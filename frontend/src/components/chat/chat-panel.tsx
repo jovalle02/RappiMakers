@@ -263,7 +263,7 @@ export function ChatPanel({ open, onClose }: { open: boolean; onClose: () => voi
               <div className="flex gap-3">
                 <RappiAvatar />
                 <div className="flex-1 min-w-0 text-sm space-y-3">
-                  {/* Thinking — streamed inline */}
+                  {/* Thinking (streamed inline) */}
                   {msg.thinking && (
                     <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
                       {msg.thinking}
@@ -285,7 +285,7 @@ export function ChatPanel({ open, onClose }: { open: boolean; onClose: () => voi
                           {toolLabel(tool.name)}{!tool.done && "..."}
                         </span>
                       </div>
-                      {/* Tool body — slides in when done */}
+                      {/* Tool body (slides in when done) */}
                       {tool.done && (
                         <div className="border-t border-[#FC4C02]/10 px-3 py-2 space-y-2 animate-in slide-in-from-top-1 fade-in duration-200">
                           {tool.input.sql != null && (
@@ -311,7 +311,7 @@ export function ChatPanel({ open, onClose }: { open: boolean; onClose: () => voi
                     </div>
                   ))}
 
-                  {/* Stream phase indicator — always visible while generating */}
+                  {/* Stream phase indicator (always visible while generating) */}
                   {streaming && i === messages.length - 1 && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="flex gap-1">

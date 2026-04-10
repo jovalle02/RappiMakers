@@ -19,7 +19,7 @@ const config = {
   anomaly_count: { label: "Anomalies", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
-// Rappi orange palette — darker = more anomalies
+// Rappi orange palette, darker = more anomalies
 function barColor(count: number, max: number) {
   if (max === 0) return "#FDDCB5";
   const ratio = count / max;
@@ -76,7 +76,7 @@ export function AnomalyDensityChart({ data }: { data: AnomalyDensity[] }) {
         <CardTitle>Anomaly Density by Hour</CardTitle>
         <CardDescription>
           When do anomalies (|z-score| &gt; 2) concentrate? Spikes reveal
-          systematic instability at specific hours — darker bars flag the worst
+          systematic instability at specific hours. Darker bars flag the worst
           offenders
         </CardDescription>
       </CardHeader>

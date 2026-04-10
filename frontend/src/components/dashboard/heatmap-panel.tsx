@@ -53,7 +53,7 @@ export function HeatmapPanel({ data }: { data: HeatmapPoint[] }) {
               return (
                 <div
                   key={hour}
-                  title={`${SHORT[di]} ${hour}:00 — ${pct.toFixed(1)}%${pt ? ` (${pt.avg_count.toLocaleString()})` : ""}`}
+                  title={`${SHORT[di]} ${hour}:00 - ${pct.toFixed(1)}%${pt ? ` (${pt.avg_count.toLocaleString()})` : ""}`}
                   className="flex-1 rounded-[3px]"
                   style={{ background: color(pct), height: 28 }}
                 />

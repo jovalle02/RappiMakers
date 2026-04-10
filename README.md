@@ -10,9 +10,9 @@ Real-time analytics dashboard and AI-powered chatbot for monitoring Rappi store 
 
 Rappi AI analyzes 67,141 observations of Rappi store visibility data (Feb 1-11, 2026, Colombia) and provides:
 
-- **Interactive Dashboard** -- KPI cards, time series, heatmaps, anomaly density charts, hourly distributions, and day-over-day comparisons
-- **AI Chatbot** -- Natural language interface powered by Claude with extended thinking, tool calling, and real-time streaming
-- **Observability** -- Self-hosted Langfuse for tracing every AI interaction: token usage, costs, tool calls, and latency
+- **Interactive Dashboard**. KPI cards, time series, heatmaps, anomaly density charts, hourly distributions, and day-over-day comparisons
+- **AI Chatbot**. Natural language interface powered by Claude with extended thinking, tool calling, and real-time streaming
+- **Observability**. Self-hosted Langfuse for tracing every AI interaction: token usage, costs, tool calls, and latency
 
 ---
 
@@ -71,10 +71,10 @@ graph LR
     B --> C["Claude receives message\n(system prompt cached)"]
     C --> D["Extended thinking"]
     D --> E{"Needs data?"}
-    E -- Yes --> F["Tool calls\n(SQL, anomaly, compare, search)"]
+    E. Yes --> F["Tool calls\n(SQL, anomaly, compare, search)"]
     F --> G["Execute against DuckDB"]
     G --> C
-    E -- No --> H["Stream final answer"]
+    E. No --> H["Stream final answer"]
     H --> I["Log trace to Langfuse\n(tokens, cost, latency)"]
 
     style A fill:#FC4C02,color:#fff
@@ -115,15 +115,15 @@ Claude has access to 4 tools and can chain up to 5 iterations per request:
 
 ## Key Design Decisions
 
-**Direct Anthropic SDK** -- Using the Anthropic Python SDK directly gives full control over SSE streaming, extended thinking blocks, tool signature preservation, and prompt caching. The agentic tool-calling loop is a simple `while` loop with explicit message management, making it easy to debug and extend.
+**Direct Anthropic SDK**. Using the Anthropic Python SDK directly gives full control over SSE streaming, extended thinking blocks, tool signature preservation, and prompt caching. The agentic tool-calling loop is a simple `while` loop with explicit message management, making it easy to debug and extend.
 
-**Prompt Caching** -- The system prompt is cached across tool-calling iterations using Anthropic's ephemeral cache. When Claude calls tools and needs a second API call, the cached system prompt is reused at 90% discount instead of being reprocessed. This reduces both cost and latency on multi-tool requests.
+**Prompt Caching**. The system prompt is cached across tool-calling iterations using Anthropic's ephemeral cache. When Claude calls tools and needs a second API call, the cached system prompt is reused at 90% discount instead of being reprocessed. This reduces both cost and latency on multi-tool requests.
 
-**DuckDB** -- An in-process columnar analytics database that runs embedded inside the backend with zero configuration. It supports full SQL including window functions, percentiles, and filtered aggregations out of the box, which is ideal for this read-only analytical workload. No separate database server needed.
+**DuckDB**. An in-process columnar analytics database that runs embedded inside the backend with zero configuration. It supports full SQL including window functions, percentiles, and filtered aggregations out of the box, which is ideal for this read-only analytical workload. No separate database server needed.
 
-**Self-Hosted Langfuse** -- Observability runs locally inside the Docker Compose stack with auto-seeded credentials. No external accounts needed. Every request is traced with token counts, costs, tool call latency, and cache hit rates.
+**Self-Hosted Langfuse**. Observability runs locally inside the Docker Compose stack with auto-seeded credentials. No external accounts needed. Every request is traced with token counts, costs, tool call latency, and cache hit rates.
 
-**Custom Guardrails** -- Input validation uses regex-based prompt injection detection and topic restriction. The guards fail-open to avoid blocking legitimate users on edge cases.
+**Custom Guardrails**. Input validation uses regex-based prompt injection detection and topic restriction. The guards fail-open to avoid blocking legitimate users on edge cases.
 
 ---
 
@@ -167,10 +167,10 @@ Langfuse is pre-configured with auto-seeded credentials. No registration needed.
 
 Once logged in, you can explore:
 
-- **Traces** -- Every chat request with full breakdown (thinking, tool calls, response)
-- **Generations** -- Token usage per Claude API call, with input/output/cache breakdown
-- **Cost** -- Per-request and aggregate cost tracking (Claude Sonnet 4.6 pricing)
-- **Latency** -- End-to-end and per-tool response times
+- **Traces**. Every chat request with full breakdown (thinking, tool calls, response)
+- **Generations**. Token usage per Claude API call, with input/output/cache breakdown
+- **Cost**. Per-request and aggregate cost tracking (Claude Sonnet 4.6 pricing)
+- **Latency**. End-to-end and per-tool response times
 
 ---
 

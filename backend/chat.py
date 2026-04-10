@@ -1,4 +1,4 @@
-"""Chat endpoint — streams Claude responses via SSE with tool calling + thinking."""
+"""Chat endpoint: streams Claude responses via SSE with tool calling and thinking."""
 
 import json
 import os
@@ -122,7 +122,7 @@ async def chat(request: Request):
                                 current_tool = None
                             current_block_type = None
 
-                    # Get the final message — this has thinking blocks with signatures intact
+                    # Get the final message (has thinking blocks with signatures intact)
                     final_message = await stream.get_final_message()
 
                 # Track token usage

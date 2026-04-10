@@ -110,7 +110,7 @@ TOOL_DEFINITIONS = [
             "Search the web for general domain knowledge to help explain data patterns. "
             "Use this to research topics like: why food delivery platforms show certain "
             "availability patterns, common causes of store visibility drops, marketplace "
-            "infrastructure patterns, etc. Do NOT search for specific Rappi incidents — "
+            "infrastructure patterns, etc. Do NOT search for specific Rappi incidents. "
             "the data is synthetic. Instead search for general knowledge that helps "
             "form hypotheses about the patterns observed in the data."
         ),
