@@ -35,7 +35,7 @@ services:
       - LANGFUSE_INIT_ORG_ID=rappimakers
       - LANGFUSE_INIT_ORG_NAME=RappiMakers
       - LANGFUSE_INIT_PROJECT_ID=rappimakers
-      - LANGFUSE_INIT_PROJECT_NAME=Store Pulse
+      - LANGFUSE_INIT_PROJECT_NAME=Rappi AI
       - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-rappimakers
       - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-rappimakers
       - LANGFUSE_INIT_USER_EMAIL=admin@rappimakers.local

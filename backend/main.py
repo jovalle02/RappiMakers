@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     shutdown_langfuse()
 
 
-app = FastAPI(title="Store Pulse API", lifespan=lifespan)
+app = FastAPI(title="Rappi AI API", lifespan=lifespan)
 
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 

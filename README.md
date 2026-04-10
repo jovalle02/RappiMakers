@@ -1,6 +1,6 @@
-# Store Pulse - Rappi Store Availability Dashboard
+# Rappi AI - Store Availability Dashboard
 
-Real-time analytics dashboard + AI-powered chatbot for monitoring Rappi store availability patterns, built with Next.js, FastAPI, DuckDB, and Claude.
+Real-time analytics dashboard and AI-powered chatbot for monitoring Rappi store availability patterns, built with Next.js, FastAPI, DuckDB, and Claude.
 
 **Stack:** Next.js 16 | FastAPI | DuckDB | Claude Sonnet 4.6 | Langfuse | Docker
 
@@ -8,11 +8,11 @@ Real-time analytics dashboard + AI-powered chatbot for monitoring Rappi store av
 
 ## Overview
 
-Store Pulse analyzes 67,141 observations of Rappi store visibility data (Feb 1-11, 2026, Colombia) and provides:
+Rappi AI analyzes 67,141 observations of Rappi store visibility data (Feb 1-11, 2026, Colombia) and provides:
 
-- **Interactive Dashboard** - KPI cards, time series, heatmaps, anomaly density charts, hourly distributions, and day-over-day comparisons
-- **AI Chatbot** - Natural language interface powered by Claude with extended thinking, tool calling, and real-time streaming
-- **Observability** - Self-hosted Langfuse for tracing every AI interaction: token usage, costs, tool calls, and latency
+- **Interactive Dashboard** -- KPI cards, time series, heatmaps, anomaly density charts, hourly distributions, and day-over-day comparisons
+- **AI Chatbot** -- Natural language interface powered by Claude with extended thinking, tool calling, and real-time streaming
+- **Observability** -- Self-hosted Langfuse for tracing every AI interaction: token usage, costs, tool calls, and latency
 
 ---
 
@@ -63,40 +63,27 @@ graph TB
 
 ## AI Chatbot Flow
 
-The chatbot uses Claude's native tool calling with extended thinking and prompt caching, streamed to the frontend via Server-Sent Events:
+Every chat message goes through this pipeline, streamed back to the user in real time via Server-Sent Events:
 
 ```mermaid
-sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant GR as Guardrails
-    participant CL as Claude Sonnet 4.6
-    participant T as Tools
-    participant DB as DuckDB
-    participant LF as Langfuse
+graph LR
+    A["User sends message"] --> B["Guardrails check"]
+    B --> C["Claude receives message\n(system prompt cached)"]
+    C --> D["Extended thinking"]
+    D --> E{"Needs data?"}
+    E -- Yes --> F["Tool calls\n(SQL, anomaly, compare, search)"]
+    F --> G["Execute against DuckDB"]
+    G --> C
+    E -- No --> H["Stream final answer"]
+    H --> I["Log trace to Langfuse\n(tokens, cost, latency)"]
 
-    U->>FE: Sends question
-    FE->>GR: POST /api/chat (SSE)
-    GR->>GR: Validate input (injection, topic, length)
-    alt Blocked
-        GR-->>FE: 400 or redirect message
-    end
-
-    GR->>CL: Stream request (system prompt cached)
-    LF-->>LF: Create trace
-
-    CL->>CL: Extended thinking (4K budget)
-    CL-->>FE: SSE: thinking chunks
-
-    CL->>T: Tool calls (up to 5 iterations)
-    T->>DB: Parameterized SQL query
-    DB-->>T: Results
-    T-->>CL: Tool results
-    LF-->>LF: Log tool span
-
-    CL-->>FE: SSE: text chunks (final answer)
-    LF-->>LF: Log generation (tokens, cost, cache)
-    FE-->>U: Rendered markdown response
+    style A fill:#FC4C02,color:#fff
+    style C fill:#d97706,color:#fff
+    style D fill:#d97706,color:#fff
+    style F fill:#009688,color:#fff
+    style G fill:#009688,color:#fff
+    style H fill:#0070f3,color:#fff
+    style I fill:#7c3aed,color:#fff
 ```
 
 ### Tool Calling Loop
@@ -118,8 +105,8 @@ Claude has access to 4 tools and can chain up to 5 iterations per request:
 |-------|-----------|-----|
 | **Frontend** | Next.js 16, React 19, Tailwind, Recharts | Modern React with server components, fast charting |
 | **Backend** | FastAPI, Python 3.12 | Async streaming, lightweight, great for APIs |
-| **Database** | DuckDB | In-process analytics DB, zero config, blazing fast on columnar data |
-| **AI** | Anthropic SDK (direct) | No LangChain abstraction - cleaner streaming, tool calling, and debugging |
+| **Database** | DuckDB | In-process analytics DB, zero config, fast on columnar data |
+| **AI** | Anthropic SDK (direct) | Full control over streaming, tool calling, prompt caching, and extended thinking |
 | **Model** | Claude Sonnet 4.6 | Extended thinking + tool use + streaming |
 | **Observability** | Langfuse (self-hosted) | Full tracing, token/cost tracking, no external dependencies |
 | **Containers** | Docker Compose | One-command setup for all 4 services |
@@ -128,15 +115,15 @@ Claude has access to 4 tools and can chain up to 5 iterations per request:
 
 ## Key Design Decisions
 
-**Direct Anthropic SDK over LangChain** - The chatbot uses Claude's streaming API directly instead of wrapping it in LangChain/LangGraph. This gives full control over the SSE stream, thinking blocks, tool signatures, and prompt caching without abstraction overhead. The agentic tool-calling loop is a simple `while` loop with explicit message management.
+**Direct Anthropic SDK** -- Using the Anthropic Python SDK directly gives full control over SSE streaming, extended thinking blocks, tool signature preservation, and prompt caching. The agentic tool-calling loop is a simple `while` loop with explicit message management, making it easy to debug and extend.
 
-**Prompt Caching** - The system prompt is cached across tool-calling iterations using Anthropic's ephemeral cache. In a multi-tool request, iteration 2+ reads ~600 tokens from cache at 90% discount instead of reprocessing them.
+**Prompt Caching** -- The system prompt is cached across tool-calling iterations using Anthropic's ephemeral cache. When Claude calls tools and needs a second API call, the cached system prompt is reused at 90% discount instead of being reprocessed. This reduces both cost and latency on multi-tool requests.
 
-**Self-Hosted Langfuse** - Observability runs locally inside the Docker Compose stack with auto-seeded credentials. No external accounts needed. Every request is traced with token counts, costs, tool call latency, and cache hit rates.
+**DuckDB** -- An in-process columnar analytics database that runs embedded inside the backend with zero configuration. It supports full SQL including window functions, percentiles, and filtered aggregations out of the box, which is ideal for this read-only analytical workload. No separate database server needed.
 
-**Custom Guardrails** - Input validation uses regex-based prompt injection detection and topic restriction instead of the `guardrails-ai` library (which requires a Hub token for validator installation). The guards fail-open to avoid blocking legitimate users.
+**Self-Hosted Langfuse** -- Observability runs locally inside the Docker Compose stack with auto-seeded credentials. No external accounts needed. Every request is traced with token counts, costs, tool call latency, and cache hit rates.
 
-**DuckDB over PostgreSQL** - The availability dataset is analytical (67K rows, read-only queries with aggregations, window functions, percentiles). DuckDB handles this in-process with zero configuration, while Postgres would add unnecessary operational complexity for a read-only workload.
+**Custom Guardrails** -- Input validation uses regex-based prompt injection detection and topic restriction. The guards fail-open to avoid blocking legitimate users on edge cases.
 
 ---
 
@@ -180,10 +167,10 @@ Langfuse is pre-configured with auto-seeded credentials. No registration needed.
 
 Once logged in, you can explore:
 
-- **Traces** - Every chat request with full breakdown (thinking, tool calls, response)
-- **Generations** - Token usage per Claude API call, with input/output/cache breakdown
-- **Cost** - Per-request and aggregate cost tracking (Claude Sonnet 4.6 pricing)
-- **Latency** - End-to-end and per-tool response times
+- **Traces** -- Every chat request with full breakdown (thinking, tool calls, response)
+- **Generations** -- Token usage per Claude API call, with input/output/cache breakdown
+- **Cost** -- Per-request and aggregate cost tracking (Claude Sonnet 4.6 pricing)
+- **Latency** -- End-to-end and per-tool response times
 
 ---
 
@@ -191,34 +178,34 @@ Once logged in, you can explore:
 
 ```
 RappiMakers/
-├── backend/
-│   ├── main.py              # FastAPI app + 7 REST endpoints
-│   ├── chat.py              # SSE streaming chat with Claude (tool loop, caching)
-│   ├── tools.py             # 4 tool definitions + safe execution
-│   ├── prompts.py           # System prompt (data analyst persona + source attribution)
-│   ├── database.py          # DuckDB initialization + parameterized query helper
-│   ├── guards.py            # Input guardrails (injection, topic, length)
-│   ├── observability.py     # Langfuse tracing helpers (traces, generations, spans)
-│   ├── requirements.txt     # Python dependencies
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── app/page.tsx     # Main page layout (dashboard + chat)
-│   │   ├── components/
-│   │   │   ├── chat/        # AI chatbot panel with SSE streaming
-│   │   │   ├── dashboard/   # 6 chart components (timeline, heatmap, etc.)
-│   │   │   └── ui/          # Shared UI components (shadcn/ui)
-│   │   └── lib/api.ts       # API client + TypeScript interfaces
-│   ├── package.json
-│   └── Dockerfile
-├── processing_data/
-│   ├── data/
-│   │   └── availability.csv # Processed dataset (67,141 rows)
-│   └── Archivo/             # Raw source CSV files
-├── transform_data.py        # Data processing pipeline
-├── docker-compose.yml       # 4 services: frontend, backend, langfuse, postgres
-├── .env.example             # Environment variable template
-└── README.md
+|-- backend/
+|   |-- main.py              # FastAPI app + 7 REST endpoints
+|   |-- chat.py              # SSE streaming chat with Claude (tool loop, caching)
+|   |-- tools.py             # 4 tool definitions + safe execution
+|   |-- prompts.py           # System prompt (data analyst persona + source attribution)
+|   |-- database.py          # DuckDB initialization + parameterized query helper
+|   |-- guards.py            # Input guardrails (injection, topic, length)
+|   |-- observability.py     # Langfuse tracing helpers (traces, generations, spans)
+|   |-- requirements.txt     # Python dependencies
+|   |-- Dockerfile
+|-- frontend/
+|   |-- src/
+|   |   |-- app/page.tsx     # Main page layout (dashboard + chat)
+|   |   |-- components/
+|   |   |   |-- chat/        # AI chatbot panel with SSE streaming
+|   |   |   |-- dashboard/   # 6 chart components (timeline, heatmap, etc.)
+|   |   |   |-- ui/          # Shared UI components (shadcn/ui)
+|   |   |-- lib/api.ts       # API client + TypeScript interfaces
+|   |-- package.json
+|   |-- Dockerfile
+|-- processing_data/
+|   |-- data/
+|   |   |-- availability.csv # Processed dataset (67,141 rows)
+|   |-- Archivo/             # Raw source CSV files
+|-- transform_data.py        # Data processing pipeline
+|-- docker-compose.yml       # 4 services: frontend, backend, langfuse, postgres
+|-- .env.example             # Environment variable template
+|-- README.md
 ```
 
 ---
@@ -245,9 +232,9 @@ RappiMakers/
 | Column | Type | Description |
 |--------|------|-------------|
 | `timestamp` | TIMESTAMP | Precise observation timestamp |
-| `store_count` | INT | Number of visible stores (range: 37 - 39,000) |
+| `store_count` | INT | Number of visible stores (range: 37 to 39,000) |
 | `rolling_avg_30m` | FLOAT | 30-minute rolling average |
-| `daily_pct` | FLOAT | Store count as % of that day's peak (0-100%) |
+| `daily_pct` | FLOAT | Store count as percentage of that day's peak (0-100%) |
 | `z_score` | FLOAT | Statistical deviation from hourly mean |
-| `is_anomaly` | BOOL | Flagged when \|z_score\| > 2 |
+| `is_anomaly` | BOOL | Flagged when the absolute z_score is greater than 2 |
 | `hour`, `minute`, `day_of_week`, `day_num` | Various | Time decomposition fields |
