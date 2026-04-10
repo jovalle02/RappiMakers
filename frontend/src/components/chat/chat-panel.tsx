@@ -116,7 +116,7 @@ export function ChatPanel({ open, onClose }: { open: boolean; onClose: () => voi
     };
 
     try {
-      const res = await fetch("http://localhost:8000/api/chat", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -311,11 +311,17 @@ export function ChatPanel({ open, onClose }: { open: boolean; onClose: () => voi
                     </div>
                   ))}
 
-                  {/* Stream phase indicator */}
-                  {streaming && i === messages.length - 1 && !msg.content && streamPhase && !msg.tools?.some(t => !t.done) && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Loader2 className="size-3 animate-spin" />
-                      <span>{streamPhase === "thinking" ? "Thinking..." : streamPhase === "responding" ? "Responding..." : streamPhase + "..."}</span>
+                  {/* Stream phase indicator — always visible while generating */}
+                  {streaming && i === messages.length - 1 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex gap-1">
+                        <span className="size-1.5 rounded-full bg-[#FC4C02] animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="size-1.5 rounded-full bg-[#FC4C02] animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="size-1.5 rounded-full bg-[#FC4C02] animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </span>
+                      <span>
+                        {streamPhase === "thinking" ? "Thinking..." : streamPhase === "responding" ? "Responding..." : streamPhase ? streamPhase + "..." : "Processing..."}
+                      </span>
                     </div>
                   )}
 

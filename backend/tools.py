@@ -1,7 +1,13 @@
 """Tool definitions and execution for the chat assistant."""
 
 import json
+import re
 from database import query
+
+_DANGEROUS_SQL = re.compile(
+    r"\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|EXEC|GRANT)\b|;",
+    re.IGNORECASE,
+)
 
 # --- Tool schemas (sent to Claude so it knows what it can call) ---
 
@@ -60,18 +66,31 @@ TOOL_DEFINITIONS = [
         "description": (
             "Compare two time periods statistically. Returns avg, min, max, "
             "std_dev, anomaly count for each period. Useful for questions like "
-            "'how does Monday compare to Saturday' or 'is morning better than evening'."
+            "'how does Monday compare to Saturday' or 'is morning better than evening'. "
+            "Each period is defined by structured filters (day_of_week, hour_start, hour_end, date)."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "period_a": {
-                    "type": "string",
-                    "description": "SQL WHERE clause for period A, e.g. \"day_of_week = 'Monday'\" or \"hour BETWEEN 8 AND 12\"",
+                    "type": "object",
+                    "description": "Filters for period A.",
+                    "properties": {
+                        "day_of_week": {"type": "string", "description": "Day name, e.g. 'Monday'"},
+                        "hour_start": {"type": "integer", "description": "Start hour inclusive (0-23)"},
+                        "hour_end": {"type": "integer", "description": "End hour inclusive (0-23)"},
+                        "date": {"type": "string", "description": "Specific date YYYY-MM-DD"},
+                    },
                 },
                 "period_b": {
-                    "type": "string",
-                    "description": "SQL WHERE clause for period B, e.g. \"day_of_week = 'Saturday'\" or \"hour BETWEEN 18 AND 22\"",
+                    "type": "object",
+                    "description": "Filters for period B.",
+                    "properties": {
+                        "day_of_week": {"type": "string", "description": "Day name, e.g. 'Saturday'"},
+                        "hour_start": {"type": "integer", "description": "Start hour inclusive (0-23)"},
+                        "hour_end": {"type": "integer", "description": "End hour inclusive (0-23)"},
+                        "date": {"type": "string", "description": "Specific date YYYY-MM-DD"},
+                    },
                 },
                 "label_a": {
                     "type": "string",
@@ -132,6 +151,10 @@ def _exec_query_database(input: dict) -> str:
     if not sql.upper().startswith("SELECT"):
         return json.dumps({"error": "Only SELECT statements are allowed."})
 
+    # Block dangerous keywords (defense-in-depth)
+    if _DANGEROUS_SQL.search(sql):
+        return json.dumps({"error": "Query contains disallowed keywords."})
+
     try:
         rows = query(sql)
         # Serialize dates/timestamps
@@ -146,12 +169,23 @@ def _exec_query_database(input: dict) -> str:
 
 def _exec_analyze_anomaly(input: dict) -> str:
     conditions = ["is_anomaly = true"]
+    params = []
+    context_conditions = []
+    context_params = []
+
     if input.get("date"):
-        conditions.append(f"CAST(date AS VARCHAR) = '{input['date']}'")
+        conditions.append("CAST(date AS VARCHAR) = ?")
+        params.append(input["date"])
+        context_conditions.append("CAST(date AS VARCHAR) = ?")
+        context_params.append(input["date"])
     if input.get("hour") is not None:
-        conditions.append(f"hour = {int(input['hour'])}")
+        conditions.append("hour = ?")
+        params.append(int(input["hour"]))
+        context_conditions.append("hour = ?")
+        context_params.append(int(input["hour"]))
 
     where = " AND ".join(conditions)
+    context_where = " AND ".join(context_conditions) if context_conditions else "1=1"
 
     try:
         # Get anomaly points
@@ -162,16 +196,12 @@ def _exec_analyze_anomaly(input: dict) -> str:
             WHERE {where}
             ORDER BY ABS(z_score) DESC
             LIMIT 20
-        """)
+        """, params)
         for r in anomalies:
             if hasattr(r.get("timestamp"), "isoformat"):
                 r["timestamp"] = r["timestamp"].isoformat()
 
         # Get context: overall stats for the same time window (without anomaly filter)
-        context_where = " AND ".join(c for c in conditions if "is_anomaly" not in c)
-        if not context_where:
-            context_where = "1=1"
-
         context = query(f"""
             SELECT
                 COUNT(*) as total_points,
@@ -182,7 +212,7 @@ def _exec_analyze_anomaly(input: dict) -> str:
                 ROUND(STDDEV(store_count)) as std_dev
             FROM availability
             WHERE {context_where}
-        """)
+        """, context_params)
 
         return json.dumps({
             "anomalies": anomalies,
@@ -192,8 +222,30 @@ def _exec_analyze_anomaly(input: dict) -> str:
         return json.dumps({"error": str(e)})
 
 
+def _build_period_filter(period: dict) -> tuple[str, list]:
+    """Build a safe WHERE clause + params from a structured period filter."""
+    conditions = []
+    params = []
+    if period.get("day_of_week"):
+        conditions.append("day_of_week = ?")
+        params.append(period["day_of_week"])
+    if period.get("hour_start") is not None and period.get("hour_end") is not None:
+        conditions.append("hour BETWEEN ? AND ?")
+        params.extend([int(period["hour_start"]), int(period["hour_end"])])
+    elif period.get("hour_start") is not None:
+        conditions.append("hour >= ?")
+        params.append(int(period["hour_start"]))
+    elif period.get("hour_end") is not None:
+        conditions.append("hour <= ?")
+        params.append(int(period["hour_end"]))
+    if period.get("date"):
+        conditions.append("CAST(date AS VARCHAR) = ?")
+        params.append(period["date"])
+    return " AND ".join(conditions) if conditions else "1=1", params
+
+
 def _exec_compare_periods(input: dict) -> str:
-    def stats_for(where: str) -> dict:
+    def stats_for(where: str, params: list) -> dict:
         rows = query(f"""
             SELECT
                 COUNT(*) as total_points,
@@ -205,12 +257,14 @@ def _exec_compare_periods(input: dict) -> str:
                 ROUND(AVG(daily_pct), 1) as avg_daily_pct
             FROM availability
             WHERE {where}
-        """)
+        """, params)
         return rows[0] if rows else {}
 
     try:
-        a = stats_for(input["period_a"])
-        b = stats_for(input["period_b"])
+        where_a, params_a = _build_period_filter(input.get("period_a", {}))
+        where_b, params_b = _build_period_filter(input.get("period_b", {}))
+        a = stats_for(where_a, params_a)
+        b = stats_for(where_b, params_b)
         return json.dumps({
             input.get("label_a", "Period A"): a,
             input.get("label_b", "Period B"): b,

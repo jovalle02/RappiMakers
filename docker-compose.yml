@@ -7,6 +7,10 @@ services:
       - ./processing_data:/processing_data
     env_file:
       - .env
+    environment:
+      - LANGFUSE_HOST=http://langfuse:3000
+    depends_on:
+      - langfuse
 
   frontend:
     build: ./frontend
@@ -14,3 +18,46 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+
+  # --- Langfuse (self-hosted observability) ---
+
+  langfuse:
+    image: langfuse/langfuse:2
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      - NEXTAUTH_SECRET=my-secret-change-me
+      - NEXTAUTH_URL=http://localhost:3001
+      - SALT=my-salt-change-me
+      - TELEMETRY_ENABLED=false
+      # Auto-seed user, org, project, and API keys on first boot
+      - LANGFUSE_INIT_ORG_ID=rappimakers
+      - LANGFUSE_INIT_ORG_NAME=RappiMakers
+      - LANGFUSE_INIT_PROJECT_ID=rappimakers
+      - LANGFUSE_INIT_PROJECT_NAME=Store Pulse
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-rappimakers
+      - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-rappimakers
+      - LANGFUSE_INIT_USER_EMAIL=admin@rappimakers.local
+      - LANGFUSE_INIT_USER_NAME=Admin
+      - LANGFUSE_INIT_USER_PASSWORD=rappimakers
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+
+  langfuse-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=langfuse
+      - POSTGRES_PASSWORD=langfuse
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  langfuse-data:

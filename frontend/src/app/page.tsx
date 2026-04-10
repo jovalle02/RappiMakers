@@ -19,7 +19,7 @@ export default function Page() {
   const [daily, setDaily] = useState<DailyPoint[]>([]);
   const [anomalyDensity, setAnomalyDensity] = useState<AnomalyDensity[]>([]);
   const [hourlyStats, setHourlyStats] = useState<HourlyStats[]>([]);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
 
   useEffect(() => {
     api.stats().then(setStats).catch(console.error);

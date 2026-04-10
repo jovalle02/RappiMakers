@@ -4,3 +4,4 @@ duckdb
 anthropic
 python-dotenv
 ddgs
+langfuse>=2.0,<3.0
