@@ -5,7 +5,7 @@ import re
 from database import query
 
 _DANGEROUS_SQL = re.compile(
-    r"\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|EXEC|GRANT)\b|;",
+    r"\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|EXEC|GRANT)\b",
     re.IGNORECASE,
 )
 
