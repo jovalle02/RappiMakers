@@ -71,10 +71,10 @@ graph LR
     B --> C["Claude receives message\n(system prompt cached)"]
     C --> D["Extended thinking"]
     D --> E{"Needs data?"}
-    E. Yes --> F["Tool calls\n(SQL, anomaly, compare, search)"]
+    E -->|Yes| F["Tool calls\n(SQL, anomaly, compare, search)"]
     F --> G["Execute against DuckDB"]
     G --> C
-    E. No --> H["Stream final answer"]
+    E -->|No| H["Stream final answer"]
     H --> I["Log trace to Langfuse\n(tokens, cost, latency)"]
 
     style A fill:#FC4C02,color:#fff
